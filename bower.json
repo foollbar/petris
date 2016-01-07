@@ -1,0 +1,21 @@
+{
+  "name": "petris",
+  "version": "1.0.0",
+  "moduleType": [
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "^0.1.0",
+    "purescript-free-canvas": "~0.4.1",
+    "purescript-canvas": "~0.4.0",
+    "purescript-lists": "~0.7.7",
+    "purescript-signal": "~4.2.0",
+    "purescript-random": "~0.2.3"
+  }
+}
