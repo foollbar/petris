@@ -23,7 +23,7 @@ import Signal.DOM
 width = 400.0
 height = 600.0
 
-type Position = { x :: Int, y :: Int }
+type Position = { row :: Int, col :: Int }
 type OwnBlock = { block :: Block, pos :: Position }
 
 data Cell = Cell String | EmptyCell
@@ -68,22 +68,22 @@ swapRow i j l = let r1 = fromJust (index l i)
                  in l2
 
 move :: (Int -> Int) -> (Int -> Int) -> Position -> Position
-move fx fy p = p { x = fx p.x, y = fy p.y }
+move frow fcol p = { row: frow p.row, col: fcol p.col }
 
 minus :: Int -> Int -> Int
 minus = flip sub
 
 left :: Position -> Position
-left = move (minus 1) id
+left = move id (minus 1)
 
 right :: Position -> Position
-right = move (+1) id
+right = move id (+1)
 
 up :: Position -> Position
-up = move id (minus 1)
+up = move (minus 1) id
 
 down :: Position -> Position
-down = move id (+1)
+down = move (+1) id
 
 sticks :: Array (Array (Position -> Position))
 sticks = [ [ id, up, up >>> up, up >>> up >>> up ]
@@ -185,7 +185,7 @@ drawGrid = do
 
 drawOwnBlock own =
   for_ (points own) \p -> do
-    drawCell (toNumber p.y) (toNumber p.x) (colorOf own.block)
+    drawCell (toNumber p.row) (toNumber p.col) (colorOf own.block)
 
 drawCell row col color = do
   setFillStyle color
@@ -201,7 +201,7 @@ drawCells rows =
 newGameState :: GameState
 newGameState = { playing: true
                , own: { block: Tturn 1
-                      , pos: { x : 9, y: 0 }
+                      , pos: { row : 0, col: 9 }
                       }
                , cells: rows
                }
@@ -221,16 +221,17 @@ rotateBlock game =
   in game { own = game.own { block = next } }
 
 inBound :: Position -> Boolean
-inBound p = 0 <= p.x && p.x < 20 && p.y < 30
+inBound p = p.row < 30 && 0 <= p.col && p.col < 20
 
 strictInBound :: Position -> Boolean
-strictInBound p = 0 <= p.x && p.x < 20 && 0 <= p.y && p.y < 30
+strictInBound p = 0 <= p.row && p.row < 30 && 0 <= p.col && p.col < 30
 
 isAvailPos :: List (List Cell) -> Position -> Boolean
-isAvailPos plane point = 
-  case get point.y point.x plane of
+isAvailPos matrix point = 
+  case get point.row point.col matrix of
     (Just (Cell _)) -> false
-    _ -> if inBound point then true else false
+    (Just EmptyCell) -> true
+    Nothing -> inBound point
 
 canMove :: (Position -> Position) -> GameState -> Boolean
 canMove f game =
@@ -248,44 +249,44 @@ abandonOwn game =
     color = colorOf game.own.block
 
     coloring :: List (List Cell) -> Position -> List (List Cell)
-    coloring cells point = set point.y point.x (Cell color) cells
+    coloring cells point = set point.row point.col (Cell color) cells
 
 nextOwn :: OwnBlock -> OwnBlock
 nextOwn own = let r = unsafePerformEff (randomInt 0 6)
                   b = fromJust $ [Stick 0, Square 0, Tturn 0, RightSnake 0, LeftSnake 0, LeftGun 0, RightGun 0] !! r
-              in own { block = b, pos = { x: 9, y: 0 } }
+              in own { block = b, pos = { row: 0, col: 9 } }
 
-fullRows :: List (List Cell) -> List Int
-fullRows plane = let p1 = map isRowFull plane
-                     p2 = filter snd (zip (0..29) p1)
-                     p3 = map fst p2
-                 in p3
+filledRows :: List (List Cell) -> List Int
+filledRows matrix = let p1 = map isRowFilled matrix
+                        p2 = filter snd (zip (0..29) p1)
+                        p3 = map fst p2
+                    in p3
   where
     isEmpty :: Cell -> Boolean
     isEmpty EmptyCell = true
     isEmpty _ = false
 
-    isRowFull :: List Cell -> Boolean
-    isRowFull row = all (not <<< isEmpty) row
+    isRowFilled :: List Cell -> Boolean
+    isRowFilled row = all (not <<< isEmpty) row
 
 breakLines :: GameState -> GameState
 breakLines game =
-  let ridx = fullRows game.cells
-      cells1 = foldlDefault break game.cells ridx
-      cells2 = foldlDefault pull cells1 ridx
+  let ridxs = filledRows game.cells
+      cells1 = foldlDefault break game.cells ridxs
+      cells2 = foldlDefault clear cells1 ridxs
   in game { cells = cells2 }
   where
     break :: List (List Cell) -> Int -> List (List Cell)
-    break plane ridx =
+    break matrix ridx =
       let emptyRow = toList $ map (\_ -> EmptyCell) [0..19]
-          plane' = fromJust $ updateAt ridx emptyRow plane
-      in plane'
+          matrix' = fromJust $ updateAt ridx emptyRow matrix
+      in matrix'
 
-    pull :: List (List Cell) -> Int -> List (List Cell)
-    pull plane ridx = go ridx plane where
-      go ridx plane = if ridx > 0
-                      then let plane' = swapRow ridx (ridx-1) plane in go (ridx-1) plane'
-                      else plane
+    clear :: List (List Cell) -> Int -> List (List Cell)
+    clear matrix ridx = go ridx matrix where
+      go ridx matrix = if ridx > 0
+                      then let matrix' = swapRow ridx (ridx-1) matrix in go (ridx-1) matrix'
+                      else matrix
 
 finish :: GameState -> GameState
 finish game = game { playing = false }
