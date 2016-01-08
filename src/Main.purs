@@ -221,7 +221,10 @@ rotateBlock game =
   in game { own = game.own { block = next } }
 
 inBound :: Position -> Boolean
-inBound p = if p.x >= 0 && p.x < 20 && p.y < 30 then true else false
+inBound p = 0 <= p.x && p.x < 20 && p.y < 30
+
+strictInBound :: Position -> Boolean
+strictInBound p = 0 <= p.x && p.x < 20 && 0 <= p.y && p.y < 30
 
 isAvailPos :: List (List Cell) -> Position -> Boolean
 isAvailPos plane point = 
@@ -237,7 +240,8 @@ canMove f game =
 
 abandonOwn :: GameState -> GameState
 abandonOwn game =
-  let c = foldlDefault coloring game.cells (points game.own)
+  let p = filter strictInBound (toList $ points game.own)
+      c = foldlDefault coloring game.cells p
   in game { cells = c }
   where
     color :: String
