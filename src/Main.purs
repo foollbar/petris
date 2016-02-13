@@ -215,11 +215,6 @@ newGameState = { playing: true
 moveBlock :: (Position -> Position) -> GameState -> GameState
 moveBlock f game = game { own = game.own { pos = f game.own.pos } }
 
-rotateBlock :: GameState -> GameState
-rotateBlock game =
-  let next = nextShape game.own.block
-  in game { own = game.own { block = next } }
-
 inBound :: Position -> Boolean
 inBound p = p.row < 30 && 0 <= p.col && p.col < 20
 
@@ -233,8 +228,8 @@ isAvailPos matrix point =
     (Just EmptyCell) -> true
     Nothing -> inBound point
 
-canMove :: (Position -> Position) -> GameState -> Boolean
-canMove f game =
+canMove :: GameState -> (Position -> Position) -> Boolean
+canMove game f =
   let points1 = points game.own
       points2 = map f points1
   in all id (map (isAvailPos game.cells) points2)
@@ -251,10 +246,10 @@ abandonOwn game =
     coloring :: List (List Cell) -> Position -> List (List Cell)
     coloring cells point = set point.row point.col (Cell color) cells
 
-randomOwn :: OwnBlock
-randomOwn = let r = unsafePerformEff (randomInt 0 6)
-                b = fromJust $ [Stick 0, Square 0, Tturn 0, RightSnake 0, LeftSnake 0, LeftGun 0, RightGun 0] !! r
-            in { block = b, pos = { row: 0, col: 9 } }
+nextOwn :: OwnBlock -> OwnBlock
+nextOwn own = let r = unsafePerformEff (randomInt 0 6)
+                  b = fromJust $ [Stick 0, Square 0, Tturn 0, RightSnake 0, LeftSnake 0, LeftGun 0, RightGun 0] !! r
+              in own { block = b, pos = { row: 0, col: 9 } }
 
 filledRows :: List (List Cell) -> List Int
 filledRows matrix = let p1 = map isRowFilled matrix
@@ -295,14 +290,14 @@ step :: Action -> GameState -> GameState
 step Tick game = step DownPress game
 step LeftPress game =
   if game.playing
-     then if canMove left game
+     then if canMove game left
              then moveBlock left game
              else game
      else game
 
 step RightPress game =
   if game.playing
-     then if canMove right game
+     then if canMove game right
              then moveBlock right game
              else game
      else game
@@ -314,20 +309,20 @@ step UpPress game =
          next  = nextShape game.own.block
          game' = game { own = game.own { block = next } }
        in
-         if canMove id game'
-             then rotateBlock game
+         if canMove game' id
+             then game'
              else game
      else game
 
 step DownPress game =
   if game.playing
-     then if canMove down game
+     then if canMove game down
              then moveBlock down game
              else
                let g1 = abandonOwn game
                    g2 = breakLines g1
-                   g3 = g2 { own = randomOwn }
-               in if canMove id g3
+                   g3 = g2 { own = nextOwn g2.own }
+               in if canMove g3 id
                      then g3
                      else finish g3
      else game
@@ -337,7 +332,7 @@ step SpacePress game =
      then go game
      else game
   where
-    go game = if canMove down game
+    go game = if canMove game down
                  then let game' = moveBlock down game in go game'
                  else step DownPress game
 
