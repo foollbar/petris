@@ -224,10 +224,10 @@ inBound :: Position -> Boolean
 inBound p = p.row < 30 && 0 <= p.col && p.col < 20
 
 strictInBound :: Position -> Boolean
-strictInBound p = 0 <= p.row && p.row < 30 && 0 <= p.col && p.col < 30
+strictInBound p = inBound p && p.row >= 0
 
 isAvailPos :: List (List Cell) -> Position -> Boolean
-isAvailPos matrix point = 
+isAvailPos matrix point =
   case get point.row point.col matrix of
     (Just (Cell _)) -> false
     (Just EmptyCell) -> true
@@ -251,10 +251,10 @@ abandonOwn game =
     coloring :: List (List Cell) -> Position -> List (List Cell)
     coloring cells point = set point.row point.col (Cell color) cells
 
-nextOwn :: OwnBlock -> OwnBlock
-nextOwn own = let r = unsafePerformEff (randomInt 0 6)
-                  b = fromJust $ [Stick 0, Square 0, Tturn 0, RightSnake 0, LeftSnake 0, LeftGun 0, RightGun 0] !! r
-              in own { block = b, pos = { row: 0, col: 9 } }
+randomOwn :: OwnBlock
+randomOwn = let r = unsafePerformEff (randomInt 0 6)
+                b = fromJust $ [Stick 0, Square 0, Tturn 0, RightSnake 0, LeftSnake 0, LeftGun 0, RightGun 0] !! r
+            in { block = b, pos = { row: 0, col: 9 } }
 
 filledRows :: List (List Cell) -> List Int
 filledRows matrix = let p1 = map isRowFilled matrix
@@ -326,7 +326,7 @@ step DownPress game =
              else
                let g1 = abandonOwn game
                    g2 = breakLines g1
-                   g3 = g2 { own = nextOwn game.own }
+                   g3 = g2 { own = randomOwn }
                in if canMove id g3
                      then g3
                      else finish g3
